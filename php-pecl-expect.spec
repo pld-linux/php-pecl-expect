@@ -3,6 +3,7 @@
 %define		_sysconfdir	/etc/php
 %define		extensionsdir	%(php-config --extension-dir 2>/dev/null)
 Summary:	%{_modname} - PHP extension for expect library
+Summary(pl):	%{_modname} - rozszerzenie PHP dla biblioteki expect
 Name:		php-pecl-%{_modname}
 Version:	0.2
 Release:	1
@@ -24,6 +25,12 @@ This extension allows to interact with processes through PTY, using
 expect library.
 
 In PECL status of this extension is: %{_status}.
+
+%description -l pl
+To rozszerzenie pozwala na interakcjê z procesami poprzez PTY przy
+u¿yciu biblioteki expect.
+
+To rozszerzenie ma w PECL status: %{_status}.
 
 %prep
 %setup -q -c
