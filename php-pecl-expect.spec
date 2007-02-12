@@ -1,7 +1,7 @@
 %define		_modname	expect
 %define		_status		beta
 Summary:	%{_modname} - PHP extension for expect library
-Summary(pl.UTF-8):   %{_modname} - rozszerzenie PHP dla biblioteki expect
+Summary(pl.UTF-8):	%{_modname} - rozszerzenie PHP dla biblioteki expect
 Name:		php-pecl-%{_modname}
 Version:	0.2.2
 Release:	1
