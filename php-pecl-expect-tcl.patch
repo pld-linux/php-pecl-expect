@@ -1,0 +1,11 @@
+--- expect-0.3.0/config.m4~	2011-06-23 22:43:23.000000000 +0200
++++ expect-0.3.0/config.m4	2011-11-02 10:29:47.216691254 +0100
+@@ -21,6 +21,8 @@
+   PHP_ADD_LIBRARY_WITH_PATH(expect, $LIBEXPECT_DIR/lib, EXPECT_SHARED_LIBADD)
+   PHP_ADD_INCLUDE($LIBEXPECT_INCLUDE_DIR)
+ 
++  PHP_ADD_LIBRARY(tcl,, EXPECT_SHARED_LIBADD)
++
+   PHP_NEW_EXTENSION(expect, expect.c expect_fopen_wrapper.c, $ext_shared)
+   PHP_SUBST(EXPECT_SHARED_LIBADD)
+ fi
