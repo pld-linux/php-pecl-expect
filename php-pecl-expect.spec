@@ -4,12 +4,12 @@
 Summary:	%{modname} - PHP extension for expect library
 Summary(pl.UTF-8):	%{modname} - rozszerzenie PHP dla biblioteki expect
 Name:		%{php_name}-pecl-%{modname}
-Version:	0.3.1
-Release:	9
+Version:	0.3.3
+Release:	1
 License:	PHP 3.01
 Group:		Development/Languages/PHP
 Source0:	http://pecl.php.net/get/%{modname}-%{version}.tgz
-# Source0-md5:	834eeff610b86f7dae68dc788f75e35b
+# Source0-md5:	a657a640e7e4e7cb1540b9706ffe1219
 URL:		http://pecl.php.net/package/expect/
 BuildRequires:	%{php_name}-devel >= 3:5.0.4
 BuildRequires:	expect-devel
@@ -37,7 +37,8 @@ mv %{modname}-%{version}/* .
 
 %build
 phpize
-%configure
+%configure \
+	--with-tcldir=%{_prefix}/lib
 %{__make}
 
 %install
