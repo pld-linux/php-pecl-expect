@@ -209,30 +209,35 @@ index a8ce93d..856ff85 100644
  PHP_MINFO_FUNCTION(expect);
  
  PHP_FUNCTION(expect_popen);
+
 diff --git a/expect.c b/expect.c
-index 405fd53..929337a 100644
+index 405fd53..8cac3eb 100644
 --- a/expect.c
 +++ b/expect.c
-@@ -319,6 +319,8 @@ PHP_FUNCTION(expect_popen)
+@@ -319,6 +319,10 @@ PHP_FUNCTION(expect_popen)
  	}
  
  	stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
 +	/* PTY reads may return EIO when the child exits; suppress notices (PHP 7.4+ d59aac58b3e7). */
++#ifdef PHP_STREAM_FLAG_SUPPRESS_ERRORS
 +	stream->flags |= PHP_STREAM_FLAG_SUPPRESS_ERRORS;
++#endif
  
  #if PHP_MAJOR_VERSION >= 7
      ZVAL_LONG (&z_pid, exp_pid);
 diff --git a/expect_fopen_wrapper.c b/expect_fopen_wrapper.c
-index 0ed83f4..56bb518 100644
+index 0ed83f4..998934a 100644
 --- a/expect_fopen_wrapper.c
 +++ b/expect_fopen_wrapper.c
-@@ -45,6 +45,9 @@ php_stream *php_expect_stream_open (php_stream_wrapper *wrapper, char *command,
+@@ -45,6 +45,11 @@ php_stream *php_expect_stream_open (php_stream_wrapper *wrapper, char *command,
  	if ((fp = exp_popen(command)) != NULL) {
  #endif
  		php_stream* stream = php_stream_fopen_from_pipe (fp, mode);
 +		stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
 +		/* PTY reads may return EIO when the child exits; suppress notices (PHP 7.4+ d59aac58b3e7). */
++#ifdef PHP_STREAM_FLAG_SUPPRESS_ERRORS
 +		stream->flags |= PHP_STREAM_FLAG_SUPPRESS_ERRORS;
++#endif
  #if PHP_MAJOR_VERSION >= 7
          zval z_pid;
          ZVAL_LONG (&z_pid, exp_pid);
