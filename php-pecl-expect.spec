@@ -1,3 +1,5 @@
+%bcond_without	tests
+
 %define		php_name	php%{?php_suffix}
 %define		modname	expect
 %define		status		beta
@@ -16,6 +18,9 @@ URL:		https://pecl.php.net/package/expect/
 BuildRequires:	%{php_name}-devel >= 3:5.0.4
 BuildRequires:	expect-devel
 BuildRequires:	rpmbuild(macros) >= 1.650
+%if %{with tests}
+BuildRequires:	%{php_name}-cgi
+%endif
 %{?requires_php_extension}
 Provides:	php(%{modname}) = %{version}
 Obsoletes:	php-pecl-expect < 0.3.1-5
@@ -44,6 +49,12 @@ phpize
 %configure \
 	--with-tcldir=%{_prefix}/lib
 %{__make}
+
+%if %{with tests}
+export NO_INTERACTION=1
+%{__make} test \
+	PHP_EXECUTABLE=%{_bindir}/%{php_name}.cgi
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
