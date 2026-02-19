@@ -1,0 +1,68 @@
+diff -Naur -x .git -x package.xml expect-0.4.0/expect.c pecl-expect-master/expect.c
+--- expect-0.4.0/expect.c	2020-01-13 19:27:49.000000000 +0100
++++ pecl-expect-master/expect.c	2026-02-19 13:13:01.974248497 +0100
+@@ -1,6 +1,6 @@
+ /*
+   +----------------------------------------------------------------------+
+-  | PHP Version 5 and 7                                                  |
++  | PHP Version 5, 7 and 8                                               |
+   +----------------------------------------------------------------------+
+   | Copyright (c) 1997-2004 The PHP Group                                |
+   +----------------------------------------------------------------------+
+@@ -318,7 +318,7 @@
+ 	
+ 	if (ZEND_NUM_ARGS() < 2 || ZEND_NUM_ARGS() > 3) { WRONG_PARAM_COUNT; }
+ 
+-	if (zend_parse_parameters (ZEND_NUM_ARGS() TSRMLS_CC, "ra|z", &z_stream, &z_cases, &z_match) == FAILURE) {
++	if (zend_parse_parameters (ZEND_NUM_ARGS() TSRMLS_CC, "ra|z/", &z_stream, &z_cases, &z_match) == FAILURE) {
+ 		return;
+ 	}
+ 
+@@ -452,11 +452,15 @@
+ 		if (z_match && exp_match && exp_match_len > 0) {
+ 			char *tmp = (char *)emalloc (sizeof(char) * (exp_match_len + 1));
+ 			strlcpy (tmp, exp_match, exp_match_len + 1);
+-			zval_dtor (z_match);
+-			array_init(z_match);
+ #if PHP_MAJOR_VERSION >= 7
++            z_match = zend_try_array_init(z_match);
++			if (!z_match) {
++				return;
++			}
+             add_index_string(z_match, 0, tmp);
+ #else
++			zval_dtor (z_match);
++			array_init(z_match);
+ 			add_index_string(z_match, 0, tmp, 1);
+ #endif
+ 			/* Get case that was matched */
+diff -Naur -x .git -x package.xml expect-0.4.0/php_expect.h pecl-expect-master/php_expect.h
+--- expect-0.4.0/php_expect.h	2020-01-13 19:27:49.000000000 +0100
++++ pecl-expect-master/php_expect.h	2026-02-19 13:13:01.974248497 +0100
+@@ -1,6 +1,6 @@
+ /*
+   +----------------------------------------------------------------------+
+-  | PHP Version 5 and 7                                                  |
++  | PHP Version 5, 7 and 8                                               |
+   +----------------------------------------------------------------------+
+   | Copyright (c) 1997-2004 The PHP Group                                |
+   +----------------------------------------------------------------------+
+@@ -68,6 +68,18 @@
+ #include "TSRM.h"
+ #endif /* ZTS */
+ 
++
++#if ZEND_MODULE_API_NO >= 20190128
++#ifndef TSRMLS_CC
++#define TSRMLS_CC
++#endif
++#ifndef TSRMLS_DC
++#define TSRMLS_DC
++#endif
++#ifndef TSRMLS_FETCH
++#define TSRMLS_FETCH()
++#endif
++#endif
+ #endif /* PHP_EXPECT_H */
+ 
+ /*
