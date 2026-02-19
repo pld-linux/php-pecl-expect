@@ -37,3 +37,25 @@
              add_index_string(z_match, 0, tmp);
  #else
  			zval_dtor (z_match);
+--- php56-pecl-expect-0.4.0/expect_fopen_wrapper.c~	2020-01-13 19:27:49.000000000 +0100
++++ php56-pecl-expect-0.4.0/expect_fopen_wrapper.c	2026-02-19 15:25:33.810648390 +0100
+@@ -26,6 +26,9 @@
+ #if PHP_MAJOR_VERSION >= 7
+ php_stream *php_expect_stream_open (php_stream_wrapper *wrapper, const char *command, const char *mode, int options, 
+                            zend_string **opened_command, php_stream_context *context STREAMS_DC TSRMLS_DC)
++#elif PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 6
++php_stream *php_expect_stream_open (php_stream_wrapper *wrapper, const char *command, const char *mode, int options,
++							  char **opened_command, php_stream_context *context STREAMS_DC TSRMLS_DC)
+ #else
+ php_stream *php_expect_stream_open (php_stream_wrapper *wrapper, char *command, char *mode, int options, 
+ 							  char **opened_command, php_stream_context *context STREAMS_DC TSRMLS_DC)
+@@ -39,7 +39,7 @@ php_stream *php_expect_stream_open (php_
+ 		command += sizeof("expect://")-1;
+ 	} 
+ 
+-#if PHP_MAJOR_VERSION >= 7
++#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 6)
+     if ((fp = exp_popen((char*)command)) != NULL) {
+ #else
+ 	if ((fp = exp_popen(command)) != NULL) {
+=======
