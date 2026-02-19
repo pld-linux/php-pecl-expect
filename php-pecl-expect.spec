@@ -11,6 +11,7 @@ Group:		Development/Languages/PHP
 Source0:	https://pecl.php.net/get/%{modname}-%{version}.tgz
 # Source0-md5:	f4cfd4ff3a1ff5ee29ff833a9e5df1cb
 Patch0:		master.patch
+Patch1:		build.patch
 URL:		https://pecl.php.net/package/expect/
 BuildRequires:	%{php_name}-devel >= 3:5.0.4
 BuildRequires:	expect-devel
@@ -36,6 +37,7 @@ To rozszerzenie ma w PECL status: %{status}.
 %setup -qc
 mv %{modname}-%{version}/* .
 %patch -P0 -p1
+%patch -P1 -p1
 
 %build
 phpize
