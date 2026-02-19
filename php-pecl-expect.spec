@@ -19,7 +19,7 @@ BuildRequires:	%{php_name}-devel >= 3:5.0.4
 BuildRequires:	expect-devel
 BuildRequires:	rpmbuild(macros) >= 1.650
 %if %{with tests}
-BuildRequires:	%{php_name}-cgi
+BuildRequires:	%{php_name}-cli
 %endif
 %{?requires_php_extension}
 Provides:	php(%{modname}) = %{version}
@@ -53,7 +53,7 @@ phpize
 %if %{with tests}
 export NO_INTERACTION=1
 %{__make} test \
-	PHP_EXECUTABLE=%{_bindir}/%{php_name}.cgi
+	PHP_EXECUTABLE=%{_bindir}/%{php_name}
 %endif
 
 %install

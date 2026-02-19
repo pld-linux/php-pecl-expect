@@ -58,4 +58,154 @@
      if ((fp = exp_popen((char*)command)) != NULL) {
  #else
  	if ((fp = exp_popen(command)) != NULL) {
-=======
+
+    Fix segfaults on PHP 8.5 (three distinct bugs)
+    
+    1. OPcache immutable arrays: PHP 8.5 with opcache.protect_memory=1
+       stores literal arrays in read-only shared memory. Calls to
+       zend_hash_internal_pointer_reset() and zend_hash_move_forward()
+       wrote to ht->nInternalPointer in that protected memory, causing
+       SIGSEGV. Fix: use _ex variants with a local HashPosition variable
+       so no write touches the HashTable struct itself.
+    
+    2. Dead stream validation: !&(stream->wrapperdata) is always false in
+       PHP 7+ because wrapperdata is an embedded zval (not a pointer).
+       Non-expect streams (e.g. from popen()) bypassed the check and
+       crashed inside libexpect. Fix: check Z_TYPE(stream->wrapperdata)
+       != IS_LONG instead.
+    
+    3. php_stream_open_wrapper() during MINIT: OnSetExpectLogFile called
+       php_stream_open_wrapper() at PHP_INI_STAGE_STARTUP before
+       EG(regular_list) is initialized, crashing in zend_hash_rehash.
+       Fix: skip stream opening during STARTUP/SHUTDOWN stages and add
+       PHP_RINIT_FUNCTION to open the logfile once the request context
+       is available.
+
+diff --git a/expect.c b/expect.c
+index cc735a8..ca2b4a1 100644
+--- a/expect.c
++++ b/expect.c
+@@ -53,7 +53,7 @@ zend_module_entry expect_module_entry = {
+ 	expect_functions,
+ 	PHP_MINIT(expect),
+ 	PHP_MSHUTDOWN(expect),
+-	NULL,
++	PHP_RINIT(expect),
+ 	NULL,
+ 	PHP_MINFO(expect),
+ 	PHP_EXPECT_VERSION,
+@@ -151,8 +151,18 @@ static PHP_INI_MH(OnSetExpectLogUser)
+  *  */
+ static PHP_INI_MH(OnSetExpectLogFile)
+ {
++	/* PHP streams cannot be opened during module startup because the resource
++	 * list (EG(regular_list)) is not yet initialized. The logfile will be
++	 * opened in RINIT once the request context is available. */
++	if (stage == PHP_INI_STAGE_STARTUP || stage == PHP_INI_STAGE_SHUTDOWN) {
++		return SUCCESS;
++	}
++
+ 	if (EXPECT_G(logfile_stream)) {
+ 		php_stream_close(EXPECT_G(logfile_stream));
++		EXPECT_G(logfile_stream) = NULL;
++		exp_logfile = NULL;
++		exp_logfile_all = 0;
+ 	}
+ #if PHP_MAJOR_VERSION >= 7
+    if (ZSTR_LEN(new_value) > 0) {
+@@ -232,6 +242,28 @@ PHP_MSHUTDOWN_FUNCTION(expect)
+ /* }}} */
+ 
+ 
++/* {{{ PHP_RINIT_FUNCTION
++ * Apply ini settings that require PHP streams, skipped during MINIT. */
++PHP_RINIT_FUNCTION(expect)
++{
++	if (!EXPECT_G(logfile_stream)) {
++		char *logfile = zend_ini_string("expect.logfile", sizeof("expect.logfile") - 1, 0);
++		if (logfile && strlen(logfile) > 0) {
++			php_stream *stream = php_stream_open_wrapper(logfile, "a", 0, NULL);
++			if (stream) {
++				stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
++				if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void **) &exp_logfile, REPORT_ERRORS) == SUCCESS) {
++					EXPECT_G(logfile_stream) = stream;
++					exp_logfile_all = 1;
++				}
++			}
++		}
++	}
++	return SUCCESS;
++}
++/* }}} */
++
++
+ /* {{{ PHP_MINFO_FUNCTION */
+ PHP_MINFO_FUNCTION(expect)
+ {
+@@ -316,7 +348,10 @@ PHP_FUNCTION(expect_expectl)
+ #endif
+ 	php_stream *stream;
+ 	int fd, argc;
+-	
++#if PHP_MAJOR_VERSION >= 7
++	HashPosition pos;
++#endif
++
+ 	if (ZEND_NUM_ARGS() < 2 || ZEND_NUM_ARGS() > 3) { WRONG_PARAM_COUNT; }
+ 
+ 	if (zend_parse_parameters (ZEND_NUM_ARGS() TSRMLS_CC, "ra|z/", &z_stream, &z_cases, &z_match) == FAILURE) {
+@@ -330,7 +365,7 @@ PHP_FUNCTION(expect_expectl)
+ #endif
+ 
+ #if PHP_MAJOR_VERSION >= 7
+-    if (!&(stream->wrapperdata)) {
++	if (Z_TYPE(stream->wrapperdata) != IS_LONG) {
+ #else
+ 	if (!stream->wrapperdata) {
+ #endif
+@@ -346,16 +381,17 @@ PHP_FUNCTION(expect_expectl)
+ 	ecases = (struct exp_case*) safe_emalloc (argc + 1, sizeof(struct exp_case), 0);
+ 	ecases_ptr = ecases;
+ 
+-	zend_hash_internal_pointer_reset (Z_ARRVAL_P(z_cases));
+-
+ #if PHP_MAJOR_VERSION >= 7
+-    while ((z_case = zend_hash_get_current_data (Z_ARRVAL_P(z_cases))) != NULL)
++	zend_hash_internal_pointer_reset_ex (Z_ARRVAL_P(z_cases), &pos);
++
++    while ((z_case = zend_hash_get_current_data_ex (Z_ARRVAL_P(z_cases), &pos)) != NULL)
+     {
+         zval *z_pattern, *z_exp_type;
+-        zend_hash_get_current_key(Z_ARRVAL_P(z_cases), NULL, &key);
++        zend_hash_get_current_key_ex(Z_ARRVAL_P(z_cases), NULL, &key, &pos);
+ 
+         if (Z_TYPE_P(z_case) != IS_ARRAY) {
+ #else
++	zend_hash_internal_pointer_reset (Z_ARRVAL_P(z_cases));
+ 	while (zend_hash_get_current_data (Z_ARRVAL_P(z_cases), (void **)&z_case) == SUCCESS)
+ 	{
+ 		zval **z_pattern, **z_exp_type;
+@@ -437,7 +473,11 @@ PHP_FUNCTION(expect_expectl)
+ 		}
+ 
+ 		ecases_ptr++;
++#if PHP_MAJOR_VERSION >= 7
++		zend_hash_move_forward_ex(Z_ARRVAL_P(z_cases), &pos);
++#else
+ 		zend_hash_move_forward(Z_ARRVAL_P(z_cases));
++#endif
+ 	}
+ 	ecases_ptr->pattern = NULL;
+ 	ecases_ptr->re = NULL;
+diff --git a/php_expect.h b/php_expect.h
+index a8ce93d..856ff85 100644
+--- a/php_expect.h
++++ b/php_expect.h
+@@ -47,6 +47,7 @@ extern zend_module_entry expect_module_entry;
+ 
+ PHP_MINIT_FUNCTION(expect);
+ PHP_MSHUTDOWN_FUNCTION(expect);
++PHP_RINIT_FUNCTION(expect);
+ PHP_MINFO_FUNCTION(expect);
+ 
+ PHP_FUNCTION(expect_popen);
